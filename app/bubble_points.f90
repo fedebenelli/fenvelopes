@@ -16,18 +16,18 @@ contains
       !!
       !! Make output folder (if necessary) and/or clean everyhing in an
       !! existing one. Then read input files to setup needed parameters.
-      use constants, only: ouput_path
-      use io_nml, only: read_system, write_system
-      use inj_envelopes, only: setup_inj => from_nml
-      integer :: funit_system, cli_error
-      character(len=500) :: infile
+      ! use constants, only: ouput_path
+      ! use io_nml, only: read_system
+      ! use inj_envelopes, only: setup_inj => from_nml
+      ! integer :: funit_system, cli_error
+      ! character(len=500) :: infile
 
-      call system("mkdir -p "//trim(ouput_path))
-      call system("rm "//trim(ouput_path)//"*")
+      ! call system("mkdir -p "//trim(ouput_path))
+      ! call system("rm "//trim(ouput_path)//"*")
 
-      call setup_cli(cli)
-      call cli%get(val=infile, switch="--infile", error=cli_error)
-      call read_system(trim(infile))
+      ! call setup_cli(cli)
+      ! call cli%get(val=infile, switch="--infile", error=cli_error)
+      ! call read_system(trim(infile))
    end subroutine
 
    subroutine run

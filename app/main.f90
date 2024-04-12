@@ -1,9 +1,9 @@
 program main
+    use fenvelopes__system, only: nc, z, model
     use dtypes, only: envelope
     use envelopes, only: PTEnvel3
     use inj_envelopes, only: injelope, get_z
     use constants, only: pr, ouput_path
-    use legacy_ar_models, only: nc, z
     use stdlib_ansi, only: blue => fg_color_blue, red => fg_color_red, &
         operator(//), operator(+), &
         style_reset, style_blink_fast, style_bold, style_underline
@@ -67,7 +67,7 @@ contains
         !!
         !! Make output folder (if necessary) and/or clean everyhing in an
         !! existing one. Then read input files to setup needed parameters.
-        use io_nml, only: read_system, write_system
+        use io_nml, only: read_system
         use inj_envelopes, only: setup_inj => from_nml
         integer :: funit_system, cli_error
         character(len=500) :: infile
@@ -78,16 +78,11 @@ contains
         call setup_cli(cli)
         call cli%get(val=infile, switch="--infile", error=cli_error)
 
-        call read_system(trim(infile))
+        call read_system(trim(infile), nc, z, model)
         call setup_inj(trim(infile))
-
-        open (newunit=funit_system, file="systemdata.nml")
-        call write_system(funit_system)
-        close (funit_system)
     end subroutine setup
 
     subroutine pt_envelopes
-        use legacy_ar_models, only: z
         use envelopes, only: envelope2, max_points, k_wilson_bubble, &
             max_points, p_wilson, k_wilson, find_hpl, get_case
         use linalg, only: point
@@ -103,7 +98,7 @@ contains
 
         real(pr) :: t, p               ! Temperature and pressure
         real(pr), allocatable :: k(:)  ! K factors
-        integer :: n_points, icri(4), ncri, i, i_max
+        integer :: n_points, icri(4), ncri, i_max
 
         type(point), allocatable :: intersections(:), self_intersections(:)
         character(len=:), allocatable :: pt_case
@@ -140,15 +135,6 @@ contains
         !  Dew/AOP envelopes
         ! ------------------------------------------------------------------------
         print *, "Dew PT"
-        t = pt_dew_t0
-        p = p_wilson(z, t)
-        do while (p > 0.1)
-            t = t - 5
-            p = p_wilson(z, t)
-        end do
-
-        k = 1/k_wilson(t, p)
-
         dew = dew_temperature(z, p=0.00001_pr, t0=pt_dew_t0)
         k = dew%y/z
         t = dew%t

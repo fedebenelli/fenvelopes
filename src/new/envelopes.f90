@@ -1,11 +1,11 @@
 module envelopes
    !! Functions to be used in the different continuation methods to trace
    !! phase envelopes 
+   use fenvelopes__system, only: nc, z, model
    use constants, only: pr
    use linalg, only: solve_system, full_newton
+   use yaeos, only: ArModel, fugacity_tp
    use dtypes, only: AbsEnvel, envelope, critical_point
-   use legacy_ar_models, only: nc
-   use legacy_thermo_properties, only: termo
    ! use progress_bar_module, only: progress_bar
    implicit none
 
@@ -49,7 +49,6 @@ contains
    ! ---------------------------------------------------------------------------
    subroutine k_wilson_bubble(z, t_0, p_end, t, p, k)
       !! Find the Wilson Kfactors at ~10 bar to initialize a bubble point
-      use legacy_ar_models, only: pc, tc, w
       real(pr), intent(in) :: z(:)
       real(pr), intent(in) :: t_0
       real(pr), intent(in) :: p_end
@@ -215,6 +214,8 @@ contains
          ix = 0
          iy = 0
       end select
+
+      call fugacity_tp()
 
       call TERMO(n, iy, 4, T, P, y, Vy, lnfug_y, dlnphi_dp_y, dlnphi_dt_y, dlnphi_dn_y)
       call TERMO(n, ix, 2, T, P, z, Vx, lnfug_x, dlnphi_dp_x, dlnphi_dt_x, dlnphi_dn_x)
@@ -1111,7 +1112,6 @@ contains
          pt_x_3, pt_y_3, del_S0 &
       )
       use stdlib_optval, only: optval
-      use legacy_ar_models, only: z
       use linalg, only: point, interpol
       type(envelope), intent(in) :: pt_x, pt_y
       type(point), intent(in) :: intersections(:)

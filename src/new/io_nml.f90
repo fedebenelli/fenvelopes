@@ -43,18 +43,10 @@ module io_nml
    !!  /
    !!
    use constants, only: pr
-   use legacy_ar_models, only: nc, thermo_model, mixing_rule, tdep, &
-                   & z, &
-                   & tc, pc, w, &
-                   & ac, b, k, &
-                   & kij, lij, bij, &
-                   & setup, SRK_factory, PR76_factory, PR78_factory
    use io, only: str
    implicit none
+   
    integer :: nunit_input
-
-
-
    character(len=50) :: model, mixrule
    character(len=254) :: path_to_file
    character(len=50) :: spec
@@ -62,224 +54,106 @@ module io_nml
 
    private
 
-   public :: setup_input, read_system, write_system
+   public :: read_system
+
 contains
-   subroutine setup_input(filepath)
-      !> Setup input file to be used
-      character(len=*), intent(in) :: filepath !! Path to input file
-      path_to_file = trim(adjustl(filepath))
-   end subroutine
-
-   subroutine read_model()
-      !> Reads the thermodynamic model to be used and sets up the selector
-      ! variables used in the thermo routines
-      namelist /nml_setup/ nc, model, mixrule
-      integer :: i, j
-
-      ! Open file and get setup information
-      open (newunit=nunit_input, file=path_to_file)
-         read (nunit_input, nml=nml_setup)
-      close (nunit_input)
-
-      ! Setup the legacy model name
-      select case (model)
-      case ("SRK")
-         thermo_model = 1
-      case ("PR76")
-         thermo_model = 2
-      case ("PR78")
-         thermo_model = 3
-      case ("RKPR")
-         thermo_model = 4
-      end select
-
-      ! This should be below, but to assure compatiblity with legacy the
-      ! mixing rule should be setup first
-      select case (mixrule)
-      case ("ClassicVdW")
-         tdep = 0
-         mixing_rule = 0
-      end select
-
-      ! Allocate in memory all the parameters
-      call setup(nc, thermo_model, tdep, mixing_rule)
-      allocate(names(nc))
-      allocate(z(nc))
-   end subroutine
-
-   subroutine read_components()
-      !! Read components
-      namelist /nml_composition/ names, spec, z
-      integer :: i, j
-
-      ! Open file and get the components to use, their composition and what
-      ! kind of specification to use on their definition
-      open (newunit=nunit_input, file=path_to_file)
-         read (nunit_input, nml=nml_composition)
-      close (nunit_input)
-
-      ! Normalize compositions
-      z = z/sum(z)
-
-      select case (model)
-      case ("SRK")
-         call read_srk()
-      case ("PR76")
-         call read_pr76()
-      case ("PR78")
-         call read_pr78()
-      end select
-      
-      select case (mixrule)
-      case ("ClassicVdW")
-         !! Read kij and lij matrixes
-         !! Since in the ClassicVdW mixing rules the bij matrix is constant
-         !! it's stored beforehand
-         call read_kij_lij()
-         do i=1, nc
-            do j=i,nc
-               bij(i, j) = 0.5_pr * (b(i) + b(j)) * (1.0_pr - lij(i, j))
-               bij(j, i) = bij(i, j)
-            end do
-         end do
-      end select
-   end subroutine
-
-   subroutine read_srk()
-      !! Read SRK model parameters
-      !!
-      !! options:
-      !! 
-      !! - spec=`critical` -> Use critical constants 
-      !! - spec=`parameters` -> Use EoS parameters
-      !!
-      namelist /nml_critical/ tc, pc, w !! Critical constants
-      namelist /nml_parameters/ ac, b, k !! EoS parameters
-      select case (spec)
-      case ("critical")
-         open (newunit=nunit_input, file=path_to_file)
-         read (nunit_input, nml=nml_critical)
-         close (nunit_input)
-         call SRK_factory(z, tc_in=tc, pc_in=pc, w_in=w)
-      case ("parameters")
-         open (newunit=nunit_input, file=path_to_file)
-         read (nunit_input, nml=nml_parameters)
-         close (nunit_input)
-         call SRK_factory(z, ac_in=ac, b_in=b, k_in=k)
-      end select
-   end subroutine
-
-   subroutine read_pr76()
-      !! Read PR76 model
-      namelist /nml_critical/ tc, pc, w
-      namelist /nml_parameters/ ac, b, k
-      select case (spec)
-      case ("critical")
-         open (newunit=nunit_input, file=path_to_file)
-            read (nunit_input, nml=nml_critical)
-         close (nunit_input)
-         call PR76_factory(z, tc_in=tc, pc_in=pc, w_in=w)
-      case ("parameters")
-         open (newunit=nunit_input, file=path_to_file)
-            read (nunit_input, nml=nml_parameters)
-         close (nunit_input)
-         call PR76_factory(z, ac_in=ac, b_in=b, k_in=k)
-      end select
-   end subroutine
-
-   subroutine read_pr78()
-      ! Read PR78 model
-      namelist /nml_critical/ tc, pc, w
-      namelist /nml_parameters/ ac, b, k
-      select case (spec)
-      case ("critical")
-         open (newunit=nunit_input, file=path_to_file)
-            read (nunit_input, nml=nml_critical)
-         close (nunit_input)
-         call PR78_factory(z, tc_in=tc, pc_in=pc, w_in=w)
-      case ("parameters")
-         open (newunit=nunit_input, file=path_to_file)
-            read (nunit_input, nml=nml_parameters)
-         close (nunit_input)
-         call PR78_factory(z, ac_in=ac, b_in=b, k_in=k)
-      end select
-   end subroutine
-
-   subroutine read_kij_lij()
-      ! Read the Kij and Lij matrices
-      namelist /nml_classicvdw/ kij, lij
-      integer :: i, j
-
-      kij = 0
-      lij = 0
-
-      open (newunit=nunit_input, file=path_to_file)
-      read (nunit_input, nml=nml_classicvdw)
-      close (nunit_input)
-
-      do i = 1, nc
-         do j = 1, nc
-            kij(i, j) = kij(j, i)
-            lij(i, j) = lij(j, i)
-         end do
-      end do
-   end subroutine
-
-   subroutine read_system(filepath)
+   
+   subroutine read_system(filepath, nc, z, syst)
+      use yaeos, only: ArModel, PengRobinson76, PengRobinson78, SoaveRedlichKwong
+      integer, intent(out) :: nc !! Number of components
+      real(pr), allocatable :: z(:) !! System composition
+      class(ArModel), allocatable :: syst !! System/model
       character(len=*) :: filepath
-      call setup_input(filepath)
-      call read_model()
-      call read_components()
-      close(nunit_input)
+
+      ! Critical constants
+      real(pr), allocatable :: tc(:), pc(:), w(:)
+      ! Combining parameters
+      real(pr), allocatable :: kij(:, :), lij(:, :)
+
+      namelist /nml_setup/ nc, model, mixrule
+      namelist /nml_critical/ tc, pc, w
+      namelist /nml_composition/ names, z, spec
+      namelist /nml_classicvdw/ kij, lij
+
+      open (newunit=nunit_input, file=trim(adjustl(filepath)))
+         read (nunit_input, nml=nml_setup)
+         allocate(names(nc), z(nc), tc(nc), pc(nc), w(nc), kij(nc, nc), lij(nc, nc))
+
+         ! Read general composition
+         read(nunit_input, nml=nml_composition); rewind(nunit_input)
+
+         ! Read critical parameters
+         read(nunit_input, nml=nml_critical); rewind(nunit_input)
+        
+         ! Read mixing rule parameters
+         select case (mixrule)
+         case("ClassicVdW")
+            kij = 0
+            lij = 0
+            read(nunit_input, nml=nml_classicvdw)
+         end select
+         rewind(nunit_input)
+         
+         ! Setup model
+         select case(model)
+         case("SRK")
+            syst = SoaveRedlichKwong(tc, pc, w, kij, lij)
+         case("PR76")
+            syst = PengRobinson76(tc, pc, w, kij, lij)
+         case("PR78")
+            syst = PengRobinson78(tc, pc, w, kij, lij)
+         end select
+         rewind(nunit_input)
+      close (nunit_input)
    end subroutine
 
-   subroutine write_system(file_unit)
-      ! Write read system into a file
-      integer, intent(in), optional :: file_unit
-      integer :: i
+   ! subroutine write_system(file_unit)
+   !    ! Write read system into a file
+   !    integer, intent(in), optional :: file_unit
+   !    integer :: i
 
-      ! if (.not. present(file_unit)) file_unit=
+   !    ! if (.not. present(file_unit)) file_unit=
 
-      character(len=20) :: fmt_pure
-      character(len=20) :: fmt_names
-      fmt_pure = "(xG,"//adjustl(trim(str(nc)))//"F10.4)"
-      fmt_names = "(8x, "//adjustl(trim(str(nc)))//"(A8))"
+   !    character(len=20) :: fmt_pure
+   !    character(len=20) :: fmt_names
+   !    fmt_pure = "(xG,"//adjustl(trim(str(nc)))//"F10.4)"
+   !    fmt_names = "(8x, "//adjustl(trim(str(nc)))//"(A8))"
 
-      write (file_unit, *) "====================="
-      write (file_unit, *) "General System: "
-      write (file_unit, *) "---------------------"
-      write (file_unit, *) "Model: ", model
-      write (file_unit, *) "MixingRule: ", mixrule
-      write (file_unit, *) "Names: ", (trim(names(i))//" ", i=1, nc)
-      write (file_unit, "(xA,2x,*(F8.6, 2x))") "Z:", z
+   !    write (file_unit, *) "====================="
+   !    write (file_unit, *) "General System: "
+   !    write (file_unit, *) "---------------------"
+   !    write (file_unit, *) "Model: ", model
+   !    write (file_unit, *) "MixingRule: ", mixrule
+   !    write (file_unit, *) "Names: ", (trim(names(i))//" ", i=1, nc)
+   !    write (file_unit, "(xA,2x,*(F8.6, 2x))") "Z:", z
 
-      write (file_unit, *) "===================="
-      write (file_unit, *) "Critical Constants: "
-      write (file_unit, *) "--------------------"
-      write (file_unit, fmt_pure) "Tc: ", tc
-      write (file_unit, fmt_pure) "Pc: ", pc
-      write (file_unit, fmt_pure) "w : ", w
-      write (file_unit, *) "===================="
-      write (file_unit, *) "EoS Parameters: "
-      write (file_unit, *) "--------------------"
-      write (file_unit, fmt_pure) "ac:", ac
-      write (file_unit, fmt_pure) "b :", b
-      write (file_unit, fmt_pure) "k :", k
+   !    write (file_unit, *) "===================="
+   !    write (file_unit, *) "Critical Constants: "
+   !    write (file_unit, *) "--------------------"
+   !    write (file_unit, fmt_pure) "Tc: ", tc
+   !    write (file_unit, fmt_pure) "Pc: ", pc
+   !    write (file_unit, fmt_pure) "w : ", w
+   !    write (file_unit, *) "===================="
+   !    write (file_unit, *) "EoS Parameters: "
+   !    write (file_unit, *) "--------------------"
+   !    write (file_unit, fmt_pure) "ac:", ac
+   !    write (file_unit, fmt_pure) "b :", b
+   !    write (file_unit, fmt_pure) "k :", k
 
-      write (file_unit, *) "===================="
-      write(file_unit, *), "Mixing Rules: "
-      write(file_unit, *), "--------------------"
+   !    write (file_unit, *) "===================="
+   !    write(file_unit, *), "Mixing Rules: "
+   !    write(file_unit, *), "--------------------"
 
-      write(file_unit, *) "Kij: "
+   !    write(file_unit, *) "Kij: "
 
-      write(file_unit, fmt_names) names
-      do i = 1, nc
-         write (file_unit, fmt_pure) str(i), kij(i, :)
-      end do
-      write(file_unit, *) "lij: "
-      write(file_unit, fmt_names) names
-      do i = 1, nc
-         write (file_unit, fmt_pure) str(i), lij(i, :)
-      end do
-   end subroutine
+   !    write(file_unit, fmt_names) names
+   !    do i = 1, nc
+   !       write (file_unit, fmt_pure) str(i), kij(i, :)
+   !    end do
+   !    write(file_unit, *) "lij: "
+   !    write(file_unit, fmt_names) names
+   !    do i = 1, nc
+   !       write (file_unit, fmt_pure) str(i), lij(i, :)
+   !    end do
+   ! end subroutine
 end module
