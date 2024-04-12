@@ -33,16 +33,21 @@ contains
    subroutine run
       use constants, only: pr
       use legacy_ar_models, only: z, nc
-      use saturation_points, only: bubble_temperature, EquilibriaState
+      use envelopes, only: k_wilson_bubble
+      use saturation_points, only: bubble_temperature, EquilibriaState, bubble_pressure
       implicit none
       real(pr) :: t, p, y0(size(z))
       integer :: i
 
       type(EquilibriaState) :: equi
 
-      do i=1, 100
-         p = real(i, pr)
-         equi = bubble_temperature(z, p, 300.0_pr)
+      p = 10
+      call k_wilson_bubble(z, 250._pr, 0.1_pr, t, p, y0)
+      y0 = y0 * z
+      do i=250, 700,10
+         t = real(i, pr)
+         equi = bubble_pressure(z, t, p0=p)
+         p = equi%p
          print *, equi%t, equi%p, equi%iters
       end do
    end subroutine
