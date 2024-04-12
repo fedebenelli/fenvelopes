@@ -907,7 +907,7 @@ contains
             y = w*Ky
 
             write (funit_output, *) &
-            "SOL", iters, ns, exp(X(2*n + 2)), exp(X(2*n + 1)), X(2*n + 3), X(:2*n), xx, y, w
+            "SOL", iters, ns, exp(X(2*n + 2)), exp(X(2*n + 1)), X(2*n + 3), X(:2*n), xx, y, w, del_S
          end block fileio
          XS(point, :) = X
 
@@ -960,11 +960,13 @@ contains
                         Xnew(size(X0)), fact
             real(pr) :: pc, tc, dS_c, dXdS_in(size(X0))
             integer :: max_changing, i
-            fact = 4.0_pr
+            fact = 2.0_pr
 
             loop: do i = 0, 1
                Xnew = X + fact*dXdS*del_S
 
+               ! This selects either the first or the second set of K
+               ! depending on the value of `i`
                K = X(i*n + 1:(i + 1)*n)
                Knew = Xnew(i*n + 1:(i + 1)*n)
               
@@ -982,7 +984,7 @@ contains
                   pc = exp(Xnew(2*n + 1))
                   cps = [cps, critical_point(tc, pc, 0.0_pr)]
 
-                  del_S = dS_c + 2.5_pr * dS_c
+                  del_S = dS_c + 3.5_pr * dS_c
 
                   write (funit_output, *) ""
                   write (funit_output, *) ""
