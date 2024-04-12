@@ -218,6 +218,12 @@ contains
                         pt_dew, pt_bub, intersections, &
                         pt_bub_3, pt_dew_3 &
                         )
+                    dsps: block
+                        use dsp_lines, only: dsp_line_from_dsp
+                        type(injelope) :: dspline(2)
+                        dspline = dsp_line_from_dsp(intersections(1), pt_dew, pt_bub, alpha0=alpha)
+                        dspline = dsp_line_from_dsp(intersections(2), pt_dew, pt_bub, alpha0=alpha)
+                    end block dsps
                   case("2_HPL_BUB_DEW_BUB")
                     call pt_three_phase_from_intersection(&
                         pt_hpl, pt_bub, [intersections(1)], &
