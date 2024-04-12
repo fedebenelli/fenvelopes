@@ -251,6 +251,7 @@ contains
       integer :: n, ldfjac, info, lwa, funit
       real(pr) :: fvec(size(x)), fjac(size(x),size(x))
       real(pr), allocatable :: wa(:)
+      character(len=1) :: do_write
 
       n = size(X)
 
@@ -268,7 +269,9 @@ contains
       dX = 20
       b = 500
 
-      open(newunit=funit, file="newton")
+      call get_environment_variable("FENV_NEWTON", do_write)
+
+      if (do_write == "1") open(newunit=funit, file="newton")
 
       newton: do iters = 1, max_iters
          if (maxval(abs(dx)) < tol .or. maxval(abs(b)) < tol) exit newton
@@ -282,11 +285,11 @@ contains
             dX = dX/2
          end do
 
-         write(funit, *) iters, X, dX
+         if (do_write == "1") write(funit, *) iters, X, dX
 
          X = X + dX
       end do newton
-      close(funit)
+      if (do_write == "1") close(funit)
 
       F = -b
       dF = A
