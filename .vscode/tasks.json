@@ -11,6 +11,8 @@
         "install",
         "--profile",
         "debug",
+        "--flag",
+        "-g -Og",
         "--prefix",
         "${workspaceRoot}/build/vscode"
       ],

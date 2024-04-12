@@ -11,7 +11,13 @@
       // Executable name here:
       "program": "${workspaceFolder}/build/vscode/bin/fenvelopes",
       // Optional arguments here:
-      "args": ["--infile", "infiles/case2.nml"],
+      "args": [
+        "--infile",
+        "/home/ruther/docs/research/thermo/algos/envelopes/other/paper/fcmmp/input_files/midoil/n2/300K/with_n2.nml",
+        "-a", "0.6",
+        "-3ph", ".true.",
+        "-px", ".true."
+      ],
       "stopAtEntry": true,
       "cwd": "${workspaceFolder}",
       "environment": [],
